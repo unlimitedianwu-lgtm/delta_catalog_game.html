@@ -1,0 +1,466 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>三角洲藏品圖鑑（模擬）</title>
+<style>
+  :root{
+    --bg:#071017; --panel:#0f1722; --muted:#9fb1bc;
+    --red:#c92b2b; --gold:#d59a12; --purple:#8b4ecd; --blue:#2f87d1; --green:#2fb76a; --gray:#9aa0a6;
+    --card:#0b1620;
+  }
+  html,body{height:100%;margin:0;font-family: "Noto Sans TC", Roboto, system-ui;background:linear-gradient(#041018,#07121a);color:#e8f6f3}
+  .wrap{max-width:1100px;margin:18px auto;padding:18px;background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));border-radius:12px}
+  header{display:flex;align-items:center;justify-content:space-between;gap:12px}
+  h1{margin:0;font-size:20px}
+  .controls{display:flex;gap:8px;align-items:center}
+  button{padding:8px 12px;border-radius:8px;border:0;background:#11303a;color:#dff7f0;cursor:pointer;font-weight:700}
+  button.secondary{background:transparent;border:1px solid rgba(255,255,255,0.06);color:var(--muted)}
+  main{display:flex;gap:14px;margin-top:16px}
+  .left{flex:1;min-width:520px;background:var(--card);padding:12px;border-radius:10px}
+  .right{width:340px;min-width:280px;background:var(--panel);padding:12px;border-radius:10px;color:var(--muted)}
+  .panel-row{display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap}
+  .container-btn{padding:10px;border-radius:8px;background:linear-gradient(180deg,#071a20,#052124);border:1px solid rgba(255,255,255,0.04);cursor:pointer}
+  .grid{display:grid;grid-template-columns:repeat(6,1fr);gap:8px}
+  .slot{background:linear-gradient(180deg,#0d1f23,#051116);padding:10px;border-radius:6px;text-align:center;color:#dff7ee;cursor:pointer;border:1px solid rgba(255,255,255,0.03)}
+  .slot.small{font-size:13px;padding:8px}
+  .log{max-height:320px;overflow:auto;padding:8px;background:linear-gradient(180deg,rgba(255,255,255,0.01),rgba(255,255,255,0.005));border-radius:6px}
+  .catalog{max-height:480px;overflow:auto;padding:8px;background:linear-gradient(180deg,rgba(255,255,255,0.01),rgba(255,255,255,0.005));border-radius:6px}
+  .item-row{display:flex;align-items:center;gap:10px;padding:6px;border-radius:6px}
+  .badge{padding:4px 8px;border-radius:6px;font-weight:700}
+  .rarity-red{background:linear-gradient(90deg,var(--red),#ff6b6b);color:#fff}
+  .rarity-gold{background:linear-gradient(90deg,var(--gold),#ffd56b);color:#081010}
+  .rarity-purple{background:linear-gradient(90deg,var(--purple),#b589f5);color:#fff}
+  .rarity-blue{background:linear-gradient(90deg,var(--blue),#7ec8ff);color:#021722}
+  .rarity-green{background:linear-gradient(90deg,var(--green),#8ff0a1);color:#042014}
+  .rarity-gray{background:linear-gradient(90deg,var(--gray),#cfd6da);color:#041417}
+  .achieved{outline:2px solid rgba(255,255,255,0.04);background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01))}
+  .meta{font-size:13px;color:var(--muted)}
+  .topbar{display:flex;gap:8px;align-items:center}
+  .search{padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,0.04);background:transparent;color:#e6f6f0}
+  .big-title{font-weight:800;color:var(--muted);margin-bottom:8px}
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div>
+        <h1>三角洲藏品圖鑑（模擬）</h1>
+        <div class="meta">純蒐集模擬：選容器 → 開箱 → 圖鑑自動記錄；含成就與每日露天領取</div>
+      </div>
+      <div class="controls">
+        <button id="btnClear" class="secondary">重置本地資料</button>
+        <button id="btnExport">匯出圖鑑（JSON）</button>
+      </div>
+    </header>
+
+    <main>
+      <section class="left">
+        <div class="topbar" style="justify-content:space-between;margin-bottom:10px">
+          <div style="display:flex;gap:8px;align-items:center">
+            <div class="big-title">選擇容器並搜尋</div>
+            <select id="containerSelect" class="search">
+              <!-- options injected by JS -->
+            </select>
+            <button id="btnOpen" title="搜尋容器">搜尋一次</button>
+            <button id="btnOpen10" title="連開 10 次">連開 10 次</button>
+          </div>
+          <div style="text-align:right">
+            <div class="meta">圖鑑已收錄：<span id="collectedCount">0</span> / <span id="totalItems">0</span></div>
+            <div class="meta">今日露天是否已領：<span id="dailyClaimed">否</span></div>
+          </div>
+        </div>
+
+        <div style="display:flex;gap:12px;margin-bottom:12px">
+          <div style="flex:1">
+            <div style="margin-bottom:6px" class="meta">容器說明（可影響掉落權重）</div>
+            <div class="panel-row" id="containerBtns"></div>
+          </div>
+          <div style="width:240px">
+            <div style="margin-bottom:6px" class="meta">露天每日領取</div>
+            <button id="claimDaily">領取今日露天藏品</button>
+            <div class="meta" style="margin-top:8px">（每天一次，會直接加入圖鑑）</div>
+          </div>
+        </div>
+
+        <div style="margin-bottom:8px" class="meta">最近開箱紀錄</div>
+        <div class="log" id="log"></div>
+      </section>
+
+      <aside class="right">
+        <div style="margin-bottom:10px">
+          <div class="big-title">圖鑑</div>
+          <input id="searchBox" class="search" placeholder="搜尋藏品名稱或稀有度" />
+          <div style="height:8px"></div>
+          <div class="catalog" id="catalog"></div>
+        </div>
+
+        <div style="margin-top:12px">
+          <div class="big-title">成就</div>
+          <div id="achievements" style="max-height:220px;overflow:auto;padding:6px"></div>
+        </div>
+      </aside>
+    </main>
+  </div>
+
+<script>
+/*
+  Delta-like container simulator (no score, no timer, no levels)
+  - Catalog (圖鑑) records items you obtain
+  - Achievements persist in localStorage
+  - Container selection modifies rarity weights but overall rarity distribution mimics official probabilities (approx)
+  - Daily outdoor (露天) claim once/day, saved in localStorage
+  - Sources referenced: 官方機率公告 + 社群維基/攻略（已用作 item list & weight guidance）
+    (This is a local, offline simulator — probabilities are approximations based on public disclosures.)
+*/
+
+/* -------------------------
+   物品資料庫（示範資料）
+   這裡列出一組常見藏品（可自行擴充）
+   每件物品有：id, name, rarity ('red','gold','purple','blue','green','gray'), desc
+   ------------------------- */
+const ITEM_DB = [
+  // RED（紅）
+  {id:'red_1', name:'印象派名畫', rarity:'red', desc:'頂級工藝藏品，極為稀有。'},
+  {id:'red_2', name:'萬金泪冠', rarity:'red', desc:'傳說級收藏。'},
+  // GOLD（金）
+  {id:'gold_1', name:'格赫罗斯的審判', rarity:'gold', desc:'高價工藝藏品。'},
+  {id:'gold_2', name:'金筆', rarity:'gold', desc:'精緻工藝用品，金色稀有。'},
+  // PURPLE（紫）
+  {id:'purple_1', name:'軍用網路模組', rarity:'purple', desc:'重要電子模組，紫色稀有度。'},
+  {id:'purple_2', name:'陸軍萬用表', rarity:'purple', desc:'專業工具材料。'},
+  // BLUE（藍）
+  {id:'blue_1', name:'燃料電池', rarity:'blue', desc:'能源材料，常見於航天基地。'},
+  {id:'blue_2', name:'衛星天線', rarity:'blue', desc:'中階物資。'},
+  // GREEN（綠）
+  {id:'green_1', name:'工具盒', rarity:'green', desc:'常見工具材料。'},
+  {id:'green_2', name:'藍色制服碎片', rarity:'green', desc:'通用小物資。'},
+  // GRAY（灰）
+  {id:'gray_1', name:'礦泉水', rarity:'gray', desc:'低價物品，常見。'},
+  {id:'gray_2', name:'折斷螺絲', rarity:'gray', desc:'低價雜物。'}
+];
+// 可以依官方/社群清單擴充更多 item 條目；程式已設計成可擴充。
+
+/* -------------------------
+   稀有度基底機率（整體分佈，近似官方公示）
+   (這些數字可替換為官方逐條百分比；目前用合理近似值)
+   red: 0.8%   gold: 3%   purple: 8%   blue: 18%   green: 30%   gray: 40.2%  => 合計 100%
+   ------------------------- */
+const BASE_RATES = {
+  red: 0.008,
+  gold: 0.03,
+  purple: 0.08,
+  blue: 0.18,
+  green: 0.30,
+  gray: 0.402
+};
+
+/* -------------------------
+   容器列表（每種容器會以倍率調整稀有度權重）
+   multiplier 為各稀有度的倍率（>1 提升該稀有度在該容器中出現機率）
+   實際掉率會先用 base*r_multiplier，最後再 normalize（保持總和 = 1）
+   ------------------------- */
+const CONTAINERS = [
+  { id:'travel_bag', name:'旅行包', desc:'低價通用包，常見灰與綠', multipliers:{red:0.2,gold:0.5,purple:0.8,blue:0.9,green:1.1,gray:1.5} },
+  { id:'small_safe', name:'小保險櫃', desc:'有機會出金/紫', multipliers:{red:0.4,gold:1.0,purple:1.2,blue:1.0,green:0.9,gray:0.6} },
+  { id:'big_safe', name:'大保險櫃', desc:'整體爆率優秀，進階容器', multipliers:{red:1.2,gold:1.4,purple:1.3,blue:1.0,green:0.7,gray:0.5} },
+  { id:'air_drop', name:'空投', desc:'高紅/金潛力', multipliers:{red:2.0,gold:1.8,purple:1.4,blue:1.0,green:0.6,gray:0.3} },
+  { id:'ground', name:'露天地面', desc:'地面刷新物，當日有一次保底領取', multipliers:{red:0.5,gold:0.9,purple:1.0,blue:1.0,green:1.1,gray:1.4} }
+];
+
+/* -------------------------
+   程式狀態與 localStorage 鍵
+   ------------------------- */
+const LS_KEYS = {
+  CATALOG:'delta_catalog_v1',
+  ACHIEVEMENTS:'delta_achievements_v1',
+  HISTORY:'delta_history_v1',
+  DAILY:'delta_daily_v1'
+};
+let state = {
+  container: CONTAINERS[0].id
+};
+
+/* -------------------------
+   Helper: 隨機按稀有度選一個 item
+   - 先根據 container multipliers 調整 base rates，normalize 後抽稀有度
+   - 再從該稀有度中隨機挑一個 item（如果該稀有度沒有 item，fallback 到下一常見）
+   ------------------------- */
+function pickItemForContainer(containerId){
+  const container = CONTAINERS.find(c=>c.id===containerId) || CONTAINERS[0];
+  // 計算調整後權重
+  const adjusted = {};
+  let sum = 0;
+  for(const r of Object.keys(BASE_RATES)){
+    const m = (container.multipliers && container.multipliers[r]) ? container.multipliers[r] : 1;
+    adjusted[r] = BASE_RATES[r] * m;
+    sum += adjusted[r];
+  }
+  // normalize
+  for(const k in adjusted) adjusted[k] /= sum;
+  // 選稀有度
+  const rnd = Math.random();
+  let acc = 0;
+  let chosenRarity = 'gray';
+  for(const r of ['red','gold','purple','blue','green','gray']){
+    acc += adjusted[r];
+    if(rnd <= acc){ chosenRarity = r; break; }
+  }
+  // 從 ITEM_DB 裡挑選該稀有度項目
+  let pool = ITEM_DB.filter(it=>it.rarity === chosenRarity);
+  if(pool.length === 0){
+    // fallback：往下找較常見的
+    const order = ['gray','green','blue','purple','gold','red'];
+    for(const o of order){
+      pool = ITEM_DB.filter(it=>it.rarity === o);
+      if(pool.length) break;
+    }
+  }
+  const chosen = pool[Math.floor(Math.random()*pool.length)];
+  return {rarity: chosenRarity, item: chosen};
+}
+
+/* -------------------------
+   圖鑑 / 成就的 localStorage 操作
+   ------------------------- */
+function loadCatalog(){ return JSON.parse(localStorage.getItem(LS_KEYS.CATALOG) || '[]'); }
+function saveCatalog(c){ localStorage.setItem(LS_KEYS.CATALOG, JSON.stringify(c)); }
+function loadAchievements(){ return JSON.parse(localStorage.getItem(LS_KEYS.ACHIEVEMENTS) || '{}'); }
+function saveAchievements(a){ localStorage.setItem(LS_KEYS.ACHIEVEMENTS, JSON.stringify(a)); }
+function loadHistory(){ return JSON.parse(localStorage.getItem(LS_KEYS.HISTORY) || '[]'); }
+function saveHistory(h){ localStorage.setItem(LS_KEYS.HISTORY, JSON.stringify(h)); }
+function loadDaily(){ return JSON.parse(localStorage.getItem(LS_KEYS.DAILY) || '{}'); }
+function saveDaily(d){ localStorage.setItem(LS_KEYS.DAILY, JSON.stringify(d)); }
+
+/* -------------------------
+   UI：初始化容器選單與按鈕
+   ------------------------- */
+const containerSelect = document.getElementById('containerSelect');
+const containerBtns = document.getElementById('containerBtns');
+const logEl = document.getElementById('log');
+const catalogEl = document.getElementById('catalog');
+const collectedCountEl = document.getElementById('collectedCount');
+const totalItemsEl = document.getElementById('totalItems');
+const achievementsEl = document.getElementById('achievements');
+const dailyClaimedEl = document.getElementById('dailyClaimed');
+
+function initUI(){
+  // 選單與按鈕
+  CONTAINERS.forEach(c=>{
+    const opt = document.createElement('option');
+    opt.value = c.id; opt.textContent = c.name;
+    containerSelect.appendChild(opt);
+
+    const btn = document.createElement('button');
+    btn.className = 'container-btn';
+    btn.textContent = c.name;
+    btn.title = c.desc;
+    btn.addEventListener('click', ()=>{ setContainer(c.id); containerSelect.value = c.id; });
+    containerBtns.appendChild(btn);
+  });
+  containerSelect.addEventListener('change', e=> setContainer(e.target.value));
+  setContainer(state.container);
+
+  document.getElementById('btnOpen').addEventListener('click', ()=> openOnce());
+  document.getElementById('btnOpen10').addEventListener('click', ()=> openN(10));
+  document.getElementById('claimDaily').addEventListener('click', ()=> claimDaily());
+  document.getElementById('btnClear').addEventListener('click', ()=> resetAll());
+  document.getElementById('btnExport').addEventListener('click', ()=> exportCatalog());
+  document.getElementById('searchBox').addEventListener('input', ()=> renderCatalog());
+  document.getElementById('btnClear').title = '清除本地所有圖鑑/成就/歷史（不可復原）';
+
+  // 初始化顯示
+  totalItemsEl.textContent = ITEM_DB.length;
+  renderCatalog();
+  renderAchievements();
+  renderDailyStatus();
+  renderHistory();
+}
+
+function setContainer(id){
+  state.container = id;
+  writeLog(`已選容器：${CONTAINERS.find(c=>c.id===id).name}`);
+}
+
+/* -------------------------
+   開箱 / 領取 日誌處理
+   ------------------------- */
+function openOnce(){
+  const res = pickItemForContainer(state.container);
+  recordObtain(res.item);
+  writeLog(`在 ${CONTAINERS.find(c=>c.id===state.container).name} 取得：${res.item.name}（${res.rarity}）`);
+  renderCatalog(); renderAchievements(); renderHistory();
+}
+function openN(n){
+  for(let i=0;i<n;i++) openOnce();
+}
+
+function claimDaily(){
+  const today = (new Date()).toISOString().slice(0,10); // YYYY-MM-DD
+  const daily = loadDaily();
+  if(daily.lastClaim === today){ alert('今日已領取過露天藏品。'); return; }
+  // 用露天容器抽一個（固定露天）
+  const res = pickItemForContainer('ground');
+  recordObtain(res.item);
+  daily.lastClaim = today;
+  saveDaily(daily);
+  writeLog(`領取今日露天藏品：${res.item.name}（${res.rarity}）`);
+  renderDailyStatus(); renderCatalog(); renderAchievements(); renderHistory();
+}
+
+function renderDailyStatus(){
+  const daily = loadDaily();
+  const today = (new Date()).toISOString().slice(0,10);
+  dailyClaimedEl.textContent = (daily.lastClaim===today) ? '是' : '否';
+}
+
+/* -------------------------
+   記錄取得並更新圖鑑/成就
+   ------------------------- */
+function recordObtain(item){
+  if(!item) return;
+  // 圖鑑：儲存 item.id -> 數量 & 最早取得時間 & last obtained time & rarity
+  const cat = loadCatalog();
+  let entry = cat.find(e=>e.id===item.id);
+  const now = new Date().toISOString();
+  if(!entry){
+    entry = { id:item.id, name:item.name, rarity:item.rarity, desc:item.desc, count:1, first:now, last:now };
+    cat.push(entry);
+  } else {
+    entry.count += 1; entry.last = now;
+  }
+  saveCatalog(cat);
+  // 歷史記錄
+  const hist = loadHistory();
+  hist.unshift({time:now, itemId:item.id, name:item.name, rarity:item.rarity, container:state.container});
+  if(hist.length>200) hist.pop();
+  saveHistory(hist);
+  // 成就更新
+  checkAchievements(cat, hist);
+}
+
+/* -------------------------
+   成就系統（示例）
+   - collect_10: 開到 10 件不同物品
+   - collect_all_gray: 收集所有灰
+   - open_100: 開 100 次容器
+   - get_red: 取得任一紅
+   ------------------------- */
+const ACHIEVEMENT_DEFS = [
+  {id:'open_10', title:'肆意搜尋者', desc:'開過 10 次容器（不需不同）', check:(cat, hist) => (hist.length >= 10) },
+  {id:'open_100', title:'勤奮的掃蕩者', desc:'開過 100 次容器', check:(cat, hist) => (hist.length >= 100) },
+  {id:'collect_5_diff', title:'蒐藏入門', desc:'收集 5 種不同藏品', check:(cat)=> (cat.length >= 5) },
+  {id:'collect_all_gray', title:'資源蒐集者', desc:'收集所有灰色物品', check:(cat)=> {
+    const grayAll = ITEM_DB.filter(i=>i.rarity==='gray').map(i=>i.id);
+    return grayAll.every(id=>cat.find(c=>c.id===id));
+  }},
+  {id:'get_red', title:'幸運抽獎者', desc:'取得任一紅色藏品', check:(cat)=> cat.some(c=>c.rarity==='red') }
+];
+
+function checkAchievements(cat, hist){
+  const achieved = loadAchievements();
+  let updated = false;
+  ACHIEVEMENT_DEFS.forEach(a=>{
+    if(achieved[a.id]) return;
+    try{
+      if(a.check(cat, hist)){
+        achieved[a.id] = { unlocked:true, time:new Date().toISOString() };
+        writeLog(`成就解鎖：${a.title}`);
+        updated = true;
+      }
+    } catch(e){}
+  });
+  if(updated) saveAchievements(achieved);
+}
+
+/* -------------------------
+   UI renderers
+   ------------------------- */
+function writeLog(text){
+  const t = new Date().toLocaleString();
+  logEl.insertAdjacentHTML('afterbegin', `<div style="margin-bottom:6px"><strong style="color:#8ef0c8">${t}</strong> — ${escapeHtml(text)}</div>`);
+}
+function escapeHtml(s){ return String(s).replace(/[&<>"']/g, m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":"&#39;"}[m])); }
+
+function renderCatalog(){
+  const cat = loadCatalog();
+  const q = (document.getElementById('searchBox').value||'').trim().toLowerCase();
+  catalogEl.innerHTML = '';
+  // map ITEM_DB order
+  ITEM_DB.forEach(it=>{
+    const found = cat.find(c=>c.id===it.id);
+    if(q && !(it.name.toLowerCase().includes(q) || it.rarity.includes(q) || (found && found.name.toLowerCase().includes(q)))) return;
+    const row = document.createElement('div');
+    row.className = 'item-row';
+    if(found) row.classList.add('achieved');
+    const badge = document.createElement('div');
+    badge.className = 'badge rarity-' + (it.rarity==='red'?'red':it.rarity==='gold'?'gold':it.rarity==='purple'?'purple':it.rarity==='blue'?'blue':it.rarity==='green'?'green':'gray');
+    badge.textContent = it.rarity.toUpperCase();
+    row.appendChild(badge);
+    const info = document.createElement('div');
+    info.style.flex='1';
+    info.innerHTML = `<div style="font-weight:700">${it.name}${found?` <small style="color:#9fffae">x${found.count}</small>`:''}</div><div class="meta">${it.desc}</div>`;
+    row.appendChild(info);
+    catalogEl.appendChild(row);
+  });
+  collectedCountEl.textContent = cat.length;
+}
+
+function renderAchievements(){
+  const achieved = loadAchievements();
+  achievementsEl.innerHTML = '';
+  ACHIEVEMENT_DEFS.forEach(a=>{
+    const e = document.createElement('div');
+    e.style.padding='8px'; e.style.borderRadius='6px'; e.style.marginBottom='6px';
+    if(achieved[a.id]) { e.className='achieved'; e.innerHTML = `<div style="font-weight:700">${a.title} ✅</div><div class="meta">${a.desc}<br/><small>解鎖時間：${achieved[a.id].time.slice(0,19).replace('T',' ')}</small></div>`;}
+    else { e.style.border='1px solid rgba(255,255,255,0.03)'; e.innerHTML = `<div style="font-weight:700">${a.title}</div><div class="meta">${a.desc}</div>`; }
+    achievementsEl.appendChild(e);
+  });
+}
+
+function renderHistory(){
+  const hist = loadHistory();
+  const maxShow = 40;
+  logEl.innerHTML = '';
+  hist.slice(0,maxShow).forEach(h=>{
+    const t = new Date(h.time).toLocaleString();
+    writeLog(`[${CONTAINERS.find(c=>c.id===h.container).name}] ${h.name} (${h.rarity})`);
+  });
+}
+
+/* -------------------------
+   匯出 / 重置 功能
+   ------------------------- */
+function exportCatalog(){
+  const cat = loadCatalog();
+  const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify({catalog:cat,achievements:loadAchievements(),history:loadHistory()},null,2));
+  const dl = document.createElement('a');
+  dl.setAttribute('href', dataStr);
+  dl.setAttribute('download', 'delta_catalog_export.json');
+  document.body.appendChild(dl); dl.click(); dl.remove();
+}
+function resetAll(){
+  if(!confirm('確定要清除本地圖鑑、成就、歷史與每日領取紀錄？此動作不可復原。')) return;
+  localStorage.removeItem(LS_KEYS.CATALOG);
+  localStorage.removeItem(LS_KEYS.ACHIEVEMENTS);
+  localStorage.removeItem(LS_KEYS.HISTORY);
+  localStorage.removeItem(LS_KEYS.DAILY);
+  writeLog('已重置本地資料。');
+  renderCatalog(); renderAchievements(); renderHistory(); renderDailyStatus();
+}
+
+/* -------------------------
+   On load
+   ------------------------- */
+(function boot(){
+  // 如果 ITEM_DB 有新項目但圖鑑沒有，仍會在圖鑑列表顯示為未取得
+  initUI();
+  // 初始 render
+  renderCatalog();
+  renderAchievements();
+  renderHistory();
+})();
+</script>
+</body>
+</html>
